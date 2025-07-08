@@ -191,3 +191,12 @@ jobs:
             ./deploy.sh
             
             echo "✅ Déploiement de StockManager terminé avec succès!"
+      - name: Copier le script de déploiement sur le serveur
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          source: "deploy.sh"
+          target: "${{ secrets.DEPLOY_PATH }}/stockmanager/"

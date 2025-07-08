@@ -5,6 +5,14 @@ Configuration de production pour le projet StockManager.
 import os
 from .base import *
 
+# Crée le dossier logs si nécessaire (pour éviter l'erreur FileNotFoundError)
+LOGS_DIR = BASE_DIR / 'logs'
+if not LOGS_DIR.exists():
+    try:
+        LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        pass
+
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get('SECRET_KEY', 'change-me-in-production')
 

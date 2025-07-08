@@ -30,10 +30,6 @@ jobs:
         run: |
           python manage.py test
           
-      - name: Tests avec pytest
-        run: |
-          pytest
-          
       - name: Vérification de la collecte des fichiers statiques
         run: |
           python manage.py collectstatic --noinput --settings=stockmanager.settings.production

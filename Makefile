@@ -78,7 +78,6 @@ clean: ## Nettoie les fichiers temporaires
 	find . -type d -name "__pycache__" -delete
 	rm -rf htmlcov/
 	rm -rf .coverage
-	rm -rf .pytest_cache/
 	rm -rf staticfiles/
 
 format: ## Formate le code avec black (si installé)

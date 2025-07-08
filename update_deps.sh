@@ -77,13 +77,13 @@ print_info "Mise à jour des packages..."
 pip install --upgrade pip
 
 # Mise à jour des autres packages (sauf Django pour éviter les breaking changes)
-pip install --upgrade Pillow coverage pytest pytest-django gunicorn
+pip install --upgrade Pillow coverage gunicorn
 
 print_success "Packages mis à jour"
 
 # Génération du nouveau requirements.txt
 print_info "Génération du nouveau requirements.txt..."
-pip freeze | grep -E "(Django|Pillow|coverage|pytest|gunicorn)" > requirements_new.txt
+pip freeze | grep -E "(Django|Pillow|coverage|gunicorn)" > requirements_new.txt
 
 # Vérification que Django n'a pas été mis à jour de manière majeure
 DJANGO_VERSION=$(pip show Django | grep Version | cut -d ' ' -f 2)

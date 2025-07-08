@@ -45,6 +45,15 @@ Application Django complète pour la gestion des stocks avec interface en ukrain
 - ✅ Statuts visuels (normal/alerte/rupture)
 - ✅ Notifications sur tableau de bord
 
+### 🚀 Déploiement Automatique
+- ✅ **Pipeline CI/CD** avec GitHub Actions
+- ✅ **Containerisation Docker** complète
+- ✅ **Script de déploiement** automatisé
+- ✅ **Tests automatiques** avant déploiement
+- ✅ **Registry Docker privé** supporté
+- ✅ **Zéro downtime** deployment
+- ✅ **Monitoring et logs** intégrés
+
 ### � Gestion des Prix
 - ✅ **Prix de base** pour chaque produit
 - ✅ **Prix négociés multiples** par produit
@@ -62,6 +71,21 @@ Application Django complète pour la gestion des stocks avec interface en ukrain
 
 ## Installation
 
+### Installation Rapide avec Makefile
+
+```bash
+# Installation complète en une commande
+make init
+
+# Créer un superutilisateur
+make superuser
+
+# Lancer le serveur
+make run
+```
+
+### Installation Manuelle
+
 1. Créer un environnement virtuel :
 ```bash
 python -m venv .venv
@@ -72,12 +96,16 @@ source .venv/bin/activate  # Linux/Mac
 2. Installer les dépendances :
 ```bash
 pip install -r requirements.txt
+# ou
+make install
 ```
 
 3. Effectuer les migrations :
 ```bash
 python manage.py makemigrations
 python manage.py migrate
+# ou
+make migrate
 ```
 
 4. Créer un superutilisateur (optionnel) :
@@ -91,6 +119,98 @@ python manage.py runserver
 ```
 
 L'application sera accessible à l'adresse http://127.0.0.1:8000/
+
+## 🐳 Déploiement avec Docker
+
+### Déploiement Local
+
+1. **Avec Docker Compose** :
+```bash
+docker-compose up -d
+```
+
+2. **Build manuel** :
+```bash
+docker build -t stockmanager .
+docker run -p 8004:8004 stockmanager
+```
+
+L'application sera accessible sur http://localhost:8004
+
+### Déploiement en Production
+
+Le projet inclut un système de déploiement automatique complet :
+
+#### Configuration GitHub Actions
+
+1. **Secrets à configurer dans GitHub** :
+   - `REGISTRY_URL` : URL du registry Docker privé
+   - `REGISTRY_USERNAME` : Nom d'utilisateur registry
+   - `REGISTRY_PASSWORD` : Mot de passe registry
+   - `DEPLOY_HOST` : Serveur de déploiement
+   - `DEPLOY_PORT` : Port SSH
+   - `DEPLOY_USER` : Utilisateur SSH
+   - `DEPLOY_PATH` : Chemin de déploiement
+   - `SSH_PRIVATE_KEY` : Clé privée SSH
+   - `SSH_PASSPHRASE` : Passphrase SSH (optionnel)
+
+2. **Variables d'environnement sur le serveur** :
+   - `SECRET_KEY` : Clé secrète Django
+   - `ALLOWED_HOST` : Host autorisé
+
+#### Pipeline de Déploiement
+
+Le pipeline GitHub Actions :
+1. ✅ Exécute tous les tests automatiquement
+2. ✅ Build l'image Docker optimisée
+3. ✅ Push vers le registry privé
+4. ✅ Déploie automatiquement sur le serveur
+5. ✅ Effectue les vérifications de santé
+
+#### Déploiement Manuel
+
+Sur le serveur de production :
+```bash
+cd /path/to/stockmanager
+./deploy.sh
+```
+
+Le script effectue :
+- Sauvegarde automatique de la DB
+- Déploiement zero-downtime
+- Vérifications de santé
+- Nettoyage des ressources
+
+### 🛠️ Commandes Utiles
+
+```bash
+# Tests
+make test                # Tests complets
+make test-django         # Tests Django uniquement
+make test-coverage       # Tests avec couverture
+
+# Développement
+make run                 # Serveur de développement
+make run-prod           # Serveur en mode production
+make migrate            # Migrations
+make collectstatic      # Fichiers statiques
+make superuser          # Créer admin
+
+# Docker
+make docker-build       # Build image
+make docker-run         # Lancer avec Docker
+make docker-test        # Tests dans Docker
+make docker-logs        # Voir les logs
+
+# Maintenance
+make clean              # Nettoyer fichiers temporaires
+make backup-db          # Sauvegarder la DB
+make deploy-local       # Déploiement local
+make check              # Vérification complète
+
+# Aide
+make help               # Liste toutes les commandes
+```
 
 ## Structure du Projet
 

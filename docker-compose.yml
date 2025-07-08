@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  stockmanager:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8005:8005"
+    volumes:
+      - ./db.sqlite3:/app/db.sqlite3
+      - ./staticfiles:/app/staticfiles
+      - ./media:/app/media
+      - ./logs:/app/logs
+    environment:
+      - DJANGO_SETTINGS_MODULE=stockmanager.settings.production
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - ALLOWED_HOST=localhost
+    command: >
+      bash -c "source /app/venv/bin/activate && 
+               gunicorn stockmanager.wsgi:application 
+               --bind 0.0.0.0:8005 
+               --workers 2 
+               --timeout 60 
+               --log-level info"
+    restart: unless-stopped
+    
+  # Service pour les tests (optionnel)
+  stockmanager-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/app
+    environment:
+      - DJANGO_SETTINGS_MODULE=stockmanager.settings.development
+    command: >
+      bash -c "source /app/venv/bin/activate && 
+               python manage.py test"
+    profiles: ["test"]

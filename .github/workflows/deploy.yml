@@ -1,0 +1,197 @@
+name: Deploy StockManager Application
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: Tests et validation
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+        
+      - name: Configuration Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+          
+      - name: Installation des dépendances
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          
+      - name: Lancement des tests
+        run: |
+          python manage.py test
+          
+      - name: Tests avec pytest
+        run: |
+          pytest
+          
+      - name: Vérification de la collecte des fichiers statiques
+        run: |
+          python manage.py collectstatic --noinput --settings=stockmanager.settings.production
+          
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    name: Build et push de l'image Docker
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+        
+      - name: Configuration Docker pour registry insécurisé
+        run: |
+          # Configurer Docker daemon pour accepter le registry insécurisé
+          JSON_CONFIG='{
+            "insecure-registries": ["${{ secrets.REGISTRY_URL }}"],
+            "experimental": true
+          }'
+          echo "Configuration JSON à écrire:"
+          echo "$JSON_CONFIG"
+          echo "$JSON_CONFIG" | sudo tee /etc/docker/daemon.json
+          if [ $? -ne 0 ]; then
+            echo "Erreur lors de l'écriture dans /etc/docker/daemon.json"
+            exit 1
+          fi
+          echo "Contenu de /etc/docker/daemon.json après écriture:"
+          sudo cat /etc/docker/daemon.json
+
+          # Redémarrer Docker pour appliquer les changements
+          echo "Tentative de redémarrage de Docker..."
+          sudo systemctl restart docker || sudo service docker restart
+          RESTART_STATUS=$?
+          if [ $RESTART_STATUS -ne 0 ]; then
+            echo "::error::Erreur lors du redémarrage de Docker (Code: $RESTART_STATUS)."
+            sudo systemctl status docker --no-pager || sudo service docker status || echo "Impossible d'obtenir le statut du service Docker."
+            exit 1
+          fi
+          echo "Docker redémarré (ou tentative effectuée)."
+
+          # Vérifier l'état du service Docker
+          echo "Vérification de l'état du service Docker..."
+          if ! sudo systemctl is-active --quiet docker && ! sudo service docker status | grep -q "is running"; then
+             echo "::error::Le service Docker n'est pas actif après le redémarrage."
+             sudo systemctl status docker --no-pager || sudo service docker status || echo "Impossible d'obtenir le statut du service Docker."
+             exit 1
+          fi
+          echo "Le service Docker est actif."
+
+          # Attendre que Docker soit prêt (max 60 secondes)
+          echo "Attente de la disponibilité du démon Docker..."
+          timeout=60
+          elapsed=0
+          while ! docker info > /dev/null 2>&1; do
+            if [ $elapsed -ge $timeout ]; then
+              echo "::error::Timeout: Le démon Docker n'est pas devenu disponible après $timeout secondes."
+              echo "--- Statut Docker ---"
+              sudo systemctl status docker --no-pager || sudo service docker status || echo "Impossible d'obtenir le statut du service Docker."
+              echo "--- Logs Docker ---"
+              sudo journalctl -u docker -n 50 --no-pager || echo "Impossible d'obtenir les logs journalctl."
+              exit 1
+            fi
+            sleep 2
+            elapsed=$((elapsed + 2))
+            echo -n "."
+          done
+          echo " Le démon Docker est prêt."
+
+          # Vérifier que la configuration est bien prise en compte
+          echo "Vérification de la configuration Docker via 'docker info'..."
+          echo "--- Début sortie 'docker info' ---"
+          DOCKER_INFO_OUTPUT=$(docker info)
+          DOCKER_INFO_EXIT_CODE=$?
+          echo "$DOCKER_INFO_OUTPUT"
+          echo "--- Fin sortie 'docker info' ---"
+
+          if [ $DOCKER_INFO_EXIT_CODE -ne 0 ]; then
+            echo "::error::La commande 'docker info' a échoué avec le code $DOCKER_INFO_EXIT_CODE."
+            exit 1
+          fi
+
+          # Recherche spécifique de l'URL du registry dans la section Insecure Registries
+          EXPECTED_REGISTRY="${{ secrets.REGISTRY_URL }}"
+          echo "Recherche de '$EXPECTED_REGISTRY' dans les 'Insecure Registries'..."
+
+          if echo "$DOCKER_INFO_OUTPUT" | grep -q -E "(Insecure Registries|Registry Mirrors):(\\n\\s+- ${EXPECTED_REGISTRY}|.*${EXPECTED_REGISTRY})"; then
+             echo "Configuration du registry insécurisé '$EXPECTED_REGISTRY' trouvée dans 'docker info'."
+          else
+             echo "::warning::La configuration attendue pour '$EXPECTED_REGISTRY' n'a pas été trouvée explicitement dans la sortie de 'docker info'."
+          fi
+
+          echo "Configuration Docker vérifiée (ou avertissement émis)."
+          
+      - name: Configuration de QEMU
+        uses: docker/setup-qemu-action@v3
+        
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          buildkitd-flags: --allow-insecure-entitlement security.insecure
+          buildkitd-config-inline: |
+            [registry."${{ secrets.REGISTRY_URL }}"]
+              http = true
+              insecure = true
+      
+      - name: Login au Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.REGISTRY_URL }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+      
+      - name: Build et Push de l'image Docker StockManager
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          platforms: linux/arm64
+          tags: |
+            ${{ secrets.REGISTRY_URL }}/stockmanager:latest
+            ${{ secrets.REGISTRY_URL }}/stockmanager:${{ github.sha }}
+          allow: security.insecure 
+          cache-from: type=registry,ref=${{ secrets.REGISTRY_URL }}/stockmanager:buildcache
+          cache-to: type=registry,ref=${{ secrets.REGISTRY_URL }}/stockmanager:buildcache,mode=max
+          provenance: false 
+          sbom: false
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    name: Déploiement sur le serveur
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Déploiement sur le serveur via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          script: |
+            echo "🚀 Début du déploiement de StockManager sur le serveur..."
+            cd ${{ secrets.DEPLOY_PATH }}/stockmanager
+            
+            # Vérifier que le script de déploiement existe
+            if [ ! -f "deploy.sh" ]; then
+              echo "❌ Erreur: Le script deploy.sh n'existe pas dans ${{ secrets.DEPLOY_PATH }}/stockmanager"
+              exit 1
+            fi
+            
+            # Rendre le script exécutable si nécessaire
+            chmod +x deploy.sh
+            
+            # Exécuter le script de déploiement
+            echo "📦 Exécution du script de déploiement..."
+            ./deploy.sh
+            
+            echo "✅ Déploiement de StockManager terminé avec succès!"

@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+
+{% block title %}Історія рухів товарів - Система управління запасами{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>
+        <i class="bi bi-arrow-left-right"></i> Історія рухів товарів
+    </h1>
+    <div class="btn-group">
+        <a href="{% url 'ajouter_mouvement' %}" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Додати рух
+        </a>
+        {% if mouvements %}
+        <a href="{% url 'export_mouvements_csv' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn btn-outline-primary">
+            <i class="bi bi-download"></i> Експорт CSV
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Filtres -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="bi bi-funnel"></i> Фільтри
+        </h5>
+    </div>
+    <div class="card-body">
+        <form method="get">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="{{ form.date_debut.id_for_label }}" class="form-label">
+                            {{ form.date_debut.label }}
+                        </label>
+                        {{ form.date_debut }}
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="{{ form.date_fin.id_for_label }}" class="form-label">
+                            {{ form.date_fin.label }}
+                        </label>
+                        {{ form.date_fin }}
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="{{ form.type_mouvement.id_for_label }}" class="form-label">
+                            {{ form.type_mouvement.label }}
+                        </label>
+                        {{ form.type_mouvement }}
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="{{ form.produit.id_for_label }}" class="form-label">
+                            {{ form.produit.label }}
+                        </label>
+                        {{ form.produit }}
+                    </div>
+                </div>
+            </div>
+            <div class="d-flex justify-content-between">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search"></i> Застосувати фільтри
+                </button>
+                <a href="{% url 'liste_mouvements' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle"></i> Очистити фільтри
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if mouvements %}
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Знайдено записів: <strong>{{ total_mouvements }}</strong></span>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Дата</th>
+                            <th>Товар</th>
+                            <th>Тип операції</th>
+                            <th>Кількість</th>
+                            <th>Коментар</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for mouvement in mouvements %}
+                        <tr>
+                            <td>{{ mouvement.date_mouvement|date:"d.m.Y H:i" }}</td>
+                            <td>
+                                <a href="{% url 'detail_produit' mouvement.produit.pk %}" class="text-decoration-none">
+                                    {{ mouvement.produit.description }}
+                                </a>
+                            </td>
+                            <td>
+                                <span class="badge {% if mouvement.type_mouvement == 'entree' %}bg-success{% else %}bg-danger{% endif %}">
+                                    <i class="bi {% if mouvement.type_mouvement == 'entree' %}bi-arrow-down-circle{% else %}bi-arrow-up-circle{% endif %}"></i>
+                                    {{ mouvement.get_type_mouvement_display }}
+                                </span>
+                            </td>
+                            <td class="fw-bold">
+                                {% if mouvement.type_mouvement == 'entree' %}
+                                    <span class="text-success">+{{ mouvement.quantite }}</span>
+                                {% else %}
+                                    <span class="text-danger">-{{ mouvement.quantite }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if mouvement.commentaire %}
+                                    {{ mouvement.commentaire|truncatechars:50 }}
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+{% else %}
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="bi bi-arrow-left-right" style="font-size: 4rem; color: #6c757d;"></i>
+            <h3 class="mt-3 text-muted">Рухи товарів не знайдено</h3>
+            <p class="text-muted">Почніть з реєстрації першого руху товару або змініть фільтри</p>
+            <a href="{% url 'ajouter_mouvement' %}" class="btn btn-success btn-lg">
+                <i class="bi bi-plus-circle"></i> Додати рух товару
+            </a>
+        </div>
+    </div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,227 @@
+{% extends 'base.html' %}
+
+{% block title %}Панель керування - Система управління запасами{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h1 class="mb-4">
+            <i class="bi bi-speedometer2"></i> Панель керування
+        </h1>
+    </div>
+</div>
+
+<!-- Statistiques -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Загальна кількість товарів</h6>
+                        <h2>{{ total_produits }}</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-box-seam" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Загальна кількість рухів</h6>
+                        <h2>{{ total_mouvements }}</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-arrow-left-right" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Товари на пороге</h6>
+                        <h2>{{ produits_en_alerte|length }}</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-exclamation-triangle" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-danger text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Товари в дефіциті</h6>
+                        <h2>{{ produits_en_rupture|length }}</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-x-circle" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alertes -->
+{% if produits_en_rupture or produits_en_alerte %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        {% if produits_en_rupture %}
+        <div class="alert alert-danger" role="alert">
+            <h5 class="alert-heading">
+                <i class="bi bi-exclamation-triangle-fill"></i> Товари в дефіциті
+            </h5>
+            <p>Наступні товари закінчились на складі:</p>
+            <ul class="mb-0">
+                {% for produit in produits_en_rupture %}
+                <li>
+                    <a href="{% url 'detail_produit' produit.pk %}" class="text-decoration-none">
+                        {{ produit.description }}
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        
+        {% if produits_en_alerte %}
+        <div class="alert alert-warning" role="alert">
+            <h5 class="alert-heading">
+                <i class="bi bi-exclamation-triangle-fill"></i> Товари нижче порогу
+            </h5>
+            <p>Наступні товари нижче встановленого порогу попередження:</p>
+            <ul class="mb-0">
+                {% for produit in produits_en_alerte %}
+                <li>
+                    <a href="{% url 'detail_produit' produit.pk %}" class="text-decoration-none">
+                        {{ produit.description }}
+                    </a>
+                    (залишилось: {{ produit.stock_actuel }}, поріг: {{ produit.seuil_alerte }})
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Stock actuel -->
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-archive"></i> Поточний стан запасів
+                </h5>
+                <a href="{% url 'ajouter_produit' %}" class="btn btn-sm btn-primary">
+                    <i class="bi bi-plus-circle"></i> Додати товар
+                </a>
+            </div>
+            <div class="card-body">
+                {% if produits %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Товар</th>
+                                    <th>Собівартість</th>
+                                    <th>Ціна продажу</th>
+                                    <th>Кількість на складі</th>
+                                    <th>Дії</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for produit in produits %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'detail_produit' produit.pk %}" class="text-decoration-none">
+                                            {{ produit.description }}
+                                        </a>
+                                    </td>
+                                    <td>{{ produit.cout_achat }} €</td>
+                                    <td>{{ produit.prix_vente }} €</td>
+                                    <td>
+                                        <span class="badge {% if produit.stock_actuel <= 0 %}bg-danger{% elif produit.stock_actuel <= 10 %}bg-warning{% else %}bg-success{% endif %}">
+                                            {{ produit.stock_actuel }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'detail_produit' produit.pk %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        <a href="{% url 'modifier_produit' produit.pk %}" class="btn btn-sm btn-outline-secondary">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-box" style="font-size: 3rem; color: #6c757d;"></i>
+                        <p class="mt-2 text-muted">Товари не знайдено</p>
+                        <a href="{% url 'ajouter_produit' %}" class="btn btn-primary">
+                            <i class="bi bi-plus-circle"></i> Додати перший товар
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-clock-history"></i> Останні рухи
+                </h5>
+                <a href="{% url 'ajouter_mouvement' %}" class="btn btn-sm btn-success">
+                    <i class="bi bi-plus-circle"></i> Додати рух
+                </a>
+            </div>
+            <div class="card-body">
+                {% if mouvements_recents %}
+                    {% for mouvement in mouvements_recents %}
+                    <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                        <div>
+                            <small class="text-muted">{{ mouvement.date_mouvement|date:"d.m.Y H:i" }}</small><br>
+                            <strong>{{ mouvement.produit.description }}</strong><br>
+                            <span class="badge {% if mouvement.type_mouvement == 'entree' %}bg-success{% else %}bg-danger{% endif %}">
+                                {{ mouvement.get_type_mouvement_display }}
+                            </span>
+                            {{ mouvement.quantite }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                    <div class="text-center mt-3">
+                        <a href="{% url 'liste_mouvements' %}" class="btn btn-sm btn-outline-primary">
+                            Переглянути всі рухи
+                        </a>
+                    </div>
+                {% else %}
+                    <div class="text-center py-3">
+                        <i class="bi bi-clock" style="font-size: 2rem; color: #6c757d;"></i>
+                        <p class="mt-2 text-muted">Рухи відсутні</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

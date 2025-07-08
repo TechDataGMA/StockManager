@@ -1,0 +1,232 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ produit.description }} - Система управління запасами{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>
+        <i class="bi bi-box-seam"></i> {{ produit.description }}
+    </h1>
+    <div class="btn-group">
+        <a href="{% url 'modifier_produit' produit.pk %}" class="btn btn-outline-primary">
+            <i class="bi bi-pencil"></i> Редагувати
+        </a>
+        <a href="{% url 'supprimer_produit' produit.pk %}" class="btn btn-outline-danger">
+            <i class="bi bi-trash"></i> Видалити
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-info-circle"></i> Інформація про товар
+                </h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-6">Опис:</dt>
+                    <dd class="col-sm-6">{{ produit.description }}</dd>
+                    
+                    <dt class="col-sm-6">Собівартість:</dt>
+                    <dd class="col-sm-6">{{ produit.cout_achat }} €</dd>
+                    
+                    <dt class="col-sm-6">Ціна продажу:</dt>
+                    <dd class="col-sm-6">
+                        <span class="fw-bold">{{ produit.prix_vente_actuel }} €</span>
+                        {% if produit.prix_vente_actuel != produit.prix_vente %}
+                            <small class="text-muted d-block">
+                                (Базова: {{ produit.prix_vente }} €)
+                            </small>
+                        {% endif %}
+                    </dd>
+                    
+                    <dt class="col-sm-6">Поріг попередження:</dt>
+                    <dd class="col-sm-6">{{ produit.seuil_alerte }}</dd>
+                    
+                    <dt class="col-sm-6">Поточний запас:</dt>
+                    <dd class="col-sm-6">
+                        <span class="badge fs-6 {% if produit.est_en_rupture %}bg-danger{% elif produit.est_en_alerte %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                            {{ produit.stock_actuel }}
+                            {% if produit.est_en_rupture %}
+                                <i class="bi bi-exclamation-triangle-fill"></i>
+                            {% elif produit.est_en_alerte %}
+                                <i class="bi bi-exclamation-triangle"></i>
+                            {% endif %}
+                        </span>
+                    </dd>
+                    
+                    <dt class="col-sm-6">Валeur запасу:</dt>
+                    <dd class="col-sm-6">{{ produit.valeur_stock }} €</dd>
+                    
+                    <dt class="col-sm-6">Дата створення:</dt>
+                    <dd class="col-sm-6">{{ produit.date_creation|date:"d.m.Y H:i" }}</dd>
+                    
+                    <dt class="col-sm-6">Остання зміна:</dt>
+                    <dd class="col-sm-6">{{ produit.date_modification|date:"d.m.Y H:i" }}</dd>
+                </dl>
+                
+                <div class="d-grid">
+                    <a href="{% url 'ajouter_mouvement' %}" class="btn btn-success">
+                        <i class="bi bi-plus-circle"></i> Додати рух товару
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Section des prix de vente négociés -->
+        <div class="card mt-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-currency-euro"></i> Ціни продажу
+                </h5>
+                <a href="{% url 'ajouter_prix_vente' produit.pk %}" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-plus-circle"></i> Додати ціну
+                </a>
+            </div>
+            <div class="card-body">
+                {% if prix_historique %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Ціна</th>
+                                    <th>Клієнт</th>
+                                    <th>Дата</th>
+                                    <th>Статус</th>
+                                    <th>Дії</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for prix in prix_historique %}
+                                <tr {% if prix.actif %}class="table-success"{% endif %}>
+                                    <td>
+                                        <strong>{{ prix.prix }} €</strong>
+                                        {% if prix.actif %}
+                                            <span class="badge bg-success ms-1">Активна</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ prix.client|default:"—" }}</td>
+                                    <td>{{ prix.date_creation|date:"d.m.Y H:i" }}</td>
+                                    <td>
+                                        {% if prix.actif %}
+                                            <span class="badge bg-success">Активна</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Неактивна</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <form method="post" action="{% url 'toggle_prix_actif' produit.pk prix.pk %}" style="display: inline;">
+                                            {% csrf_token %}
+                                            {% if prix.actif %}
+                                                <button type="submit" class="btn btn-sm btn-outline-warning" 
+                                                        onclick="return confirm('Деактивувати цю ціну?')">
+                                                    <i class="bi bi-pause-circle"></i> Деактивувати
+                                                </button>
+                                            {% else %}
+                                                <button type="submit" class="btn btn-sm btn-outline-success"
+                                                        onclick="return confirm('Активувати цю ціну? Всі інші ціни буде деактивовано.')">
+                                                    <i class="bi bi-play-circle"></i> Активувати
+                                                </button>
+                                            {% endif %}
+                                        </form>
+                                        {% if prix.commentaire %}
+                                            <button class="btn btn-sm btn-outline-info ms-1" 
+                                                    data-bs-toggle="tooltip" 
+                                                    title="{{ prix.commentaire }}">
+                                                <i class="bi bi-info-circle"></i>
+                                            </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Affichage du prix de base en bas -->
+                    <div class="mt-3 p-2 bg-light rounded">
+                        <small class="text-muted">
+                            <i class="bi bi-info-circle"></i> 
+                            <strong>Базова ціна:</strong> {{ produit.prix_vente }} € 
+                            (використовується коли немає активних переговорних цін)
+                        </small>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-currency-euro" style="font-size: 3rem; color: #6c757d;"></i>
+                        <p class="mt-2 text-muted">Переговорні ціни відсутні</p>
+                        <p class="text-muted">
+                            <small>Використовується базова ціна: <strong>{{ produit.prix_vente }} €</strong></small>
+                        </p>
+                        <a href="{% url 'ajouter_prix_vente' produit.pk %}" class="btn btn-outline-primary">
+                            <i class="bi bi-plus-circle"></i> Додати першу переговорну ціну
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-clock-history"></i> Історія рухів товару
+                </h5>
+                <a href="{% url 'ajouter_mouvement' %}" class="btn btn-sm btn-success">
+                    <i class="bi bi-plus-circle"></i> Додати рух
+                </a>
+            </div>
+            <div class="card-body">
+                {% if mouvements %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Дата</th>
+                                    <th>Тип</th>
+                                    <th>Кількість</th>
+                                    <th>Коментар</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for mouvement in mouvements %}
+                                <tr>
+                                    <td>{{ mouvement.date_mouvement|date:"d.m.Y H:i" }}</td>
+                                    <td>
+                                        <span class="badge {% if mouvement.type_mouvement == 'entree' %}bg-success{% else %}bg-danger{% endif %}">
+                                            {{ mouvement.get_type_mouvement_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if mouvement.type_mouvement == 'entree' %}+{% else %}-{% endif %}{{ mouvement.quantite }}
+                                    </td>
+                                    <td>{{ mouvement.commentaire|default:"—" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-clock" style="font-size: 3rem; color: #6c757d;"></i>
+                        <p class="mt-2 text-muted">Рухи товару відсутні</p>
+                        <a href="{% url 'ajouter_mouvement' %}" class="btn btn-success">
+                            <i class="bi bi-plus-circle"></i> Додати перший рух
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-3">
+    <a href="{% url 'liste_produits' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Назад до списку товарів
+    </a>
+</div>
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+
+{% block title %}Видалити товар - Система управління запасами{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h3 class="mb-0">
+                    <i class="bi bi-exclamation-triangle"></i> Підтвердження видалення
+                </h3>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <strong>Увага!</strong> Ця дія незворотна.
+                </div>
+                
+                <p>Ви впевнені, що хочете видалити товар <strong>"{{ produit.description }}"</strong>?</p>
+                
+                <div class="card bg-light">
+                    <div class="card-body">
+                        <h6>Інформація про товар:</h6>
+                        <ul class="mb-0">
+                            <li>Собівартість: {{ produit.cout_achat }} €</li>
+                            <li>Ціна продажу: {{ produit.prix_vente }} €</li>
+                            <li>Поточний запас: {{ produit.stock_actuel }}</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                {% if produit.mouvement_set.exists %}
+                    <div class="alert alert-info mt-3" role="alert">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Примітка:</strong> Цей товар має історію рухів ({{ produit.mouvement_set.count }} записів), які також будуть видалені.
+                    </div>
+                {% endif %}
+
+                <form method="post" class="mt-4">
+                    {% csrf_token %}
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'detail_produit' produit.pk %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Скасувати
+                        </a>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-trash"></i> Так, видалити товар
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

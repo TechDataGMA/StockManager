@@ -56,13 +56,23 @@ class MouvementForm(forms.ModelForm):
     
     class Meta:
         model = Mouvement
-        fields = ['produit', 'type_mouvement', 'quantite', 'commentaire']
+        fields = ['produit', 'type_mouvement', 'quantite', 'prix_vente_utilise', 'commentaire']
         widgets = {
-            'produit': forms.Select(attrs={'class': 'form-select'}),
-            'type_mouvement': forms.Select(attrs={'class': 'form-select'}),
+            'produit': forms.Select(attrs={
+                'class': 'form-select',
+                'onchange': 'loadPrixVente(this.value)'
+            }),
+            'type_mouvement': forms.Select(attrs={
+                'class': 'form-select',
+                'onchange': 'togglePrixVente()'
+            }),
             'quantite': forms.NumberInput(
                 attrs={'class': 'form-control', 'min': '1'}
             ),
+            'prix_vente_utilise': forms.Select(attrs={
+                'class': 'form-select',
+                'style': 'display: none;'
+            }),
             'commentaire': forms.Textarea(
                 attrs={
                     'class': 'form-control',
@@ -71,6 +81,11 @@ class MouvementForm(forms.ModelForm):
                 }
             ),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['prix_vente_utilise'].required = False
+        self.fields['prix_vente_utilise'].empty_label = "Prix de base du produit"
 
 
 class FiltreMovementForm(forms.Form):

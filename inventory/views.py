@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from .models import Produit, Mouvement, PrixVente
 from .forms import ProduitForm, MouvementForm, FiltreMovementForm, PrixVenteForm
 import csv
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 
 
 def tableau_bord(request):
@@ -242,3 +242,31 @@ def toggle_prix_actif(request, pk, prix_pk):
         return redirect('detail_produit', pk=produit.pk)
     
     return redirect('detail_produit', pk=pk)
+
+def get_prix_produit(request, pk):
+    """Retourner les prix disponibles pour un produit (AJAX)"""
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        produit = get_object_or_404(Produit, pk=pk)
+        prix_list = []
+        
+        # Prix de base
+        prix_list.append({
+            'id': '',
+            'prix': float(produit.prix_vente),
+            'label': f'Prix de base: {produit.prix_vente}€'
+        })
+        
+        # Prix négociés actifs
+        for prix in produit.prix_vente_historique.filter(actif=True):
+            label = f'{prix.prix}€'
+            if prix.client:
+                label += f' ({prix.client})'
+            prix_list.append({
+                'id': prix.id,
+                'prix': float(prix.prix),
+                'label': label
+            })
+        
+        return JsonResponse({'prix': prix_list})
+    
+    return JsonResponse({'error': 'Requête invalide'}, status=400)

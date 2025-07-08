@@ -14,6 +14,8 @@ urlpatterns = [
          name='ajouter_prix_vente'),
     path('produits/<int:pk>/prix/<int:prix_pk>/toggle/', views.toggle_prix_actif, 
          name='toggle_prix_actif'),
+    path('produits/<int:pk>/prix-ajax/', views.get_prix_produit, 
+         name='get_prix_produit'),
     path('mouvements/', views.liste_mouvements, name='liste_mouvements'),
     path('mouvements/ajouter/', views.ajouter_mouvement, 
          name='ajouter_mouvement'),

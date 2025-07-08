@@ -31,6 +31,34 @@ Développer une application web légère sous Django permettant de gérer les en
 - **Toute l’interface (titres, boutons, labels, messages) doit être en ukrainien**  
   (utiliser la traduction ukrainienne pour tous les textes visibles par l’utilisateur)
 
+## Fonctionnalités avancées (extension Copilot)
+
+### Gestion avancée des prix de vente
+- Un produit peut avoir plusieurs prix négociés (par client ou contexte)
+- Historique complet des prix négociés, avec date, client, commentaire, statut actif/inactif
+- Lors d'une sortie, l'utilisateur choisit le prix négocié à appliquer (prix de base ou prix négocié actif)
+- Sélection dynamique du prix via AJAX selon le produit choisi
+- Tous les montants sont affichés et exportés en euro (€)
+- Calcul automatique de la valeur du mouvement selon le prix sélectionné
+- Marge bénéficiaire calculée automatiquement
+
+### Interface et expérience utilisateur
+- Interface 100% en ukrainien (labels, messages, erreurs, boutons)
+- Design responsive et moderne avec Bootstrap 5
+- Navigation intuitive, feedback utilisateur, icônes
+
+### Filtres, alertes et export
+- Filtres avancés sur les mouvements (date, type, produit)
+- Système d'alertes visuelles (stock bas, rupture)
+- Export CSV des mouvements filtrés, avec montants en euro
+
+### Architecture technique
+- Modèles : Produit, Mouvement, PrixVente (historique des prix)
+- Formulaires adaptés pour la gestion des prix négociés et leur sélection lors des sorties
+- Vues Django avec gestion AJAX pour la sélection du prix
+- Templates Bootstrap avec affichage des prix négociés et des montants en euro
+- Code et documentation en français, interface utilisateur en ukrainien
+
 ## Contraintes techniques
 
 - **Framework** : Django (Python)
@@ -38,6 +66,21 @@ Développer une application web légère sous Django permettant de gérer les en
 - **Front-end** : Django templates + Bootstrap (ou TailwindCSS)
 - **Déploiement local** : compatible VSCode, `python manage.py runserver`
 - **Langue de l’interface** : ukrainien (tous les textes affichés à l’utilisateur doivent être traduits en ukrainien)
+
+### Qualité & Tests
+
+- **Tests unitaires** :  
+  Rédiger des tests unitaires pour chaque modèle, vue et fonction métier critique.
+- **Tests d’intégration** :  
+  Couvrir les principaux scénarios utilisateurs (création de produit, enregistrement d’un mouvement, sélection d’un prix négocié, export CSV, alertes).
+- **Outils** :  
+  Utiliser le framework de test Django (`django.test`) et `pytest` si besoin.
+- **Livrables** :  
+  Les tests doivent être placés dans des fichiers `tests.py` ou sous un répertoire `tests/`, bien structurés et commentés en français.
+- **Couverture** :  
+  Viser une couverture de code d’au moins 80% sur les fonctionnalités métier.
+- **Exécution** :  
+  Les tests doivent pouvoir être lancés via `python manage.py test`.
 
 ## Déroulement suggéré pour GitHub Copilot
 
@@ -61,13 +104,6 @@ Développer une application web légère sous Django permettant de gérer les en
    - Ajout d’un filtre par dates
    - Export CSV de l’historique
    - Authentification basique (facultatif)
-
-## Style de code et bonnes pratiques
-
-- Code structuré, commenté en français
-- Simplicité, clarté, efficacité
-- Utilisation des conventions Django
-- Fichiers README et requirements.txt à générer
 
 ---
 

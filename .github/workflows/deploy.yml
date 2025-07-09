@@ -165,6 +165,25 @@ jobs:
     name: Déploiement sur le serveur
     if: github.ref == 'refs/heads/main'
     steps:
+      - name: Vérifier la présence de deploy.sh à la racine du repo
+        run: |
+          ls -al
+          ls -l deploy.sh
+          if [ ! -f deploy.sh ]; then
+            echo "❌ Le fichier deploy.sh n'est pas à la racine du repo !"
+            exit 1
+          fi
+
+      - name: Copier le script de déploiement sur le serveur
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          source: "deploy.sh"
+          target: "${{ secrets.DEPLOY_PATH }}/stockmanager/"
+
       - name: Déploiement sur le serveur via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -176,27 +195,12 @@ jobs:
           script: |
             echo "🚀 Début du déploiement de StockManager sur le serveur..."
             cd ${{ secrets.DEPLOY_PATH }}/stockmanager
-            
-            # Vérifier que le script de déploiement existe
             if [ ! -f "deploy.sh" ]; then
               echo "❌ Erreur: Le script deploy.sh n'existe pas dans ${{ secrets.DEPLOY_PATH }}/stockmanager"
+              ls -l
               exit 1
             fi
-            
-            # Rendre le script exécutable si nécessaire
             chmod +x deploy.sh
-            
-            # Exécuter le script de déploiement
             echo "📦 Exécution du script de déploiement..."
             ./deploy.sh
-            
             echo "✅ Déploiement de StockManager terminé avec succès!"
-      - name: Copier le script de déploiement sur le serveur
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.DEPLOY_PORT }}
-          source: "deploy.sh"
-          target: "${{ secrets.DEPLOY_PATH }}/stockmanager/"

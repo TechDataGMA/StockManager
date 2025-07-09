@@ -187,7 +187,34 @@ jobs:
           source: "deploy.sh"
           target: "${{ secrets.DEPLOY_PATH }}/stockmanager/"
 
-      - name: Déploiement sur le serveur via SSH
+      - name: Vérifier la présence de docker-compose.yml et .env à la racine du repo
+        run: |
+          ls -l docker-compose.yml
+          ls -l .env || echo 'Pas de .env, il sera à créer sur le serveur'
+
+      - name: Copier docker-compose.yml sur le serveur
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          source: "docker-compose.yml"
+          target: "${{ secrets.DEPLOY_PATH }}/stockmanager/"
+
+      - name: Copier le Dockerfile sur le serveur
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          source: "Dockerfile"
+          target: "${{ secrets.DEPLOY_PATH }}/stockmanager/"
+
+      - name: Déploiement via docker-compose
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.DEPLOY_HOST }}
@@ -196,14 +223,18 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
           script: |
-            echo "🚀 Début du déploiement de StockManager sur le serveur..."
+            echo "🚀 Déploiement StockManager via docker-compose..."
             cd ${{ secrets.DEPLOY_PATH }}/stockmanager
-            if [ ! -f "deploy.sh" ]; then
-              echo "❌ Erreur: Le script deploy.sh n'existe pas dans ${{ secrets.DEPLOY_PATH }}/stockmanager"
-              ls -l
+            ls -l
+            if [ ! -f "docker-compose.yml" ]; then
+              echo "❌ docker-compose.yml manquant !"
               exit 1
             fi
-            chmod +x deploy.sh
-            echo "📦 Exécution du script de déploiement..."
-            ./deploy.sh
-            echo "✅ Déploiement de StockManager terminé avec succès!"
+            if [ ! -f ".env" ]; then
+              echo "⚠️  Pas de .env trouvé, les variables d'environnement doivent être définies ailleurs."
+            fi
+            docker-compose pull || true
+            docker-compose down || true
+            docker-compose up -d
+            docker-compose ps
+            echo "✅ Déploiement terminé !"

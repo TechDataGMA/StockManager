@@ -165,6 +165,8 @@ jobs:
     name: Déploiement sur le serveur
     if: github.ref == 'refs/heads/main'
     steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
       - name: Vérifier la présence de deploy.sh à la racine du repo
         run: |
           ls -al
@@ -180,6 +182,7 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
           port: ${{ secrets.DEPLOY_PORT }}
           source: "deploy.sh"
           target: "${{ secrets.DEPLOY_PATH }}/stockmanager/"

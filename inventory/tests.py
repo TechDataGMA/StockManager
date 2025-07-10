@@ -843,3 +843,273 @@ class ScenarioIntegrationTest(TestCase):
         )
         
         self.assertEqual(mouvement.valeur_mouvement(), Decimal('750.00'))  # 30 * 25.00
+
+
+class PhotoProduitTest(TestCase):
+    """Tests pour la fonctionnalité photo des produits"""
+
+    def setUp(self):
+        self.client = Client()
+        self.produit = Produit.objects.create(
+            description="Produit Test Photo",
+            cout_achat=Decimal('10.00'),
+            prix_vente=Decimal('15.00')
+        )
+
+    def test_produit_sans_photo(self):
+        """Test d'affichage produit sans photo"""
+        response = self.client.get(reverse('detail_produit', args=[self.produit.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.produit.description)
+
+    def test_formulaire_produit_avec_photo(self):
+        """Test du formulaire avec champ photo"""
+        form_data = {
+            'description': 'Produit avec photo',
+            'cout_achat': '12.00',
+            'prix_vente': '18.00',
+            'seuil_alerte': '10'
+        }
+        form = ProduitForm(data=form_data)
+        self.assertTrue(form.is_valid())
+
+    def test_affichage_liste_produits_avec_photos(self):
+        """Test d'affichage de la liste avec colonnes photos"""
+        response = self.client.get(reverse('liste_produits'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Фото')  # Vérifier l'en-tête de colonne
+
+
+class CoutAchatTest(TestCase):
+    """Tests pour la fonctionnalité coûts d'achat variables"""
+
+    def setUp(self):
+        self.client = Client()
+        self.produit = Produit.objects.create(
+            description="Produit Test Coût",
+            cout_achat=Decimal('10.00'),
+            prix_vente=Decimal('15.00')
+        )
+
+    def test_creation_cout_achat(self):
+        """Test de création d'un coût d'achat variable"""
+        from .models import CoutAchat
+        cout = CoutAchat.objects.create(
+            produit=self.produit,
+            cout=Decimal('12.50'),
+            fournisseur='Fournisseur Test',
+            actif=True,
+            commentaire='Prix négocié'
+        )
+        self.assertEqual(cout.cout, Decimal('12.50'))
+        self.assertEqual(cout.fournisseur, 'Fournisseur Test')
+        self.assertTrue(cout.actif)
+        self.assertEqual(str(cout), f"{self.produit.description} - 12.50€ (Fournisseur Test)")
+
+    def test_cout_achat_actuel(self):
+        """Test de récupération du coût d'achat actuel"""
+        from .models import CoutAchat
+        
+        # Sans coût spécifique, doit retourner le coût de base
+        self.assertEqual(self.produit.cout_achat_actuel(), self.produit.cout_achat)
+        
+        # Ajouter un coût spécifique actif
+        cout_negocie = CoutAchat.objects.create(
+            produit=self.produit,
+            cout=Decimal('11.50'),
+            actif=True
+        )
+        self.assertEqual(self.produit.cout_achat_actuel(), Decimal('11.50'))
+        
+        # Désactiver le coût spécifique
+        cout_negocie.actif = False
+        cout_negocie.save()
+        self.assertEqual(self.produit.cout_achat_actuel(), self.produit.cout_achat)
+
+    def test_ajouter_cout_achat_vue(self):
+        """Test d'ajout d'un coût d'achat via la vue"""
+        data = {
+            'cout': '13.75',
+            'fournisseur': 'Nouveau Fournisseur',
+            'commentaire': 'Négociation spéciale',
+            'actif': True
+        }
+        response = self.client.post(
+            reverse('ajouter_cout_achat', args=[self.produit.pk]), 
+            data
+        )
+        self.assertEqual(response.status_code, 302)  # Redirection
+        
+        from .models import CoutAchat
+        self.assertTrue(CoutAchat.objects.filter(cout=Decimal('13.75')).exists())
+
+    def test_toggle_cout_actif(self):
+        """Test d'activation/désactivation d'un coût"""
+        from .models import CoutAchat
+        cout = CoutAchat.objects.create(
+            produit=self.produit,
+            cout=Decimal('12.00'),
+            actif=False
+        )
+        
+        # Activer le coût
+        response = self.client.post(
+            reverse('toggle_cout_actif', args=[self.produit.pk, cout.pk])
+        )
+        self.assertEqual(response.status_code, 302)
+        
+        cout.refresh_from_db()
+        self.assertTrue(cout.actif)
+
+    def test_get_cout_produit_ajax(self):
+        """Test de récupération des coûts via AJAX"""
+        from .models import CoutAchat
+        CoutAchat.objects.create(
+            produit=self.produit,
+            cout=Decimal('11.25'),
+            fournisseur='Fournisseur AJAX',
+            actif=True
+        )
+        
+        response = self.client.get(
+            reverse('get_cout_produit', args=[self.produit.pk]),
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        self.assertEqual(response.status_code, 200)
+        
+        data = json.loads(response.content)
+        self.assertIn('couts', data)
+        self.assertEqual(len(data['couts']), 2)  # Coût de base + coût négocié
+
+    def test_formulaire_mouvement_avec_cout(self):
+        """Test du formulaire de mouvement avec sélection de coût"""
+        from .models import CoutAchat
+        cout = CoutAchat.objects.create(
+            produit=self.produit,
+            cout=Decimal('9.50'),
+            actif=True
+        )
+        
+        data = {
+            'produit': self.produit.pk,
+            'type_mouvement': 'entree',
+            'quantite': 50,
+            'cout_achat_utilise': cout.pk,
+            'commentaire': 'Entrée avec coût spécifique'
+        }
+        
+        form = MouvementForm(data=data)
+        if form.is_valid():
+            mouvement = form.save()
+            self.assertEqual(mouvement.cout_utilise(), Decimal('9.50'))
+            self.assertEqual(mouvement.valeur_mouvement(), Decimal('475.00'))  # 50 * 9.50
+
+    def test_affichage_detail_produit_avec_couts(self):
+        """Test d'affichage des coûts dans le détail produit"""
+        from .models import CoutAchat
+        CoutAchat.objects.create(
+            produit=self.produit,
+            cout=Decimal('8.75'),
+            fournisseur='Test Fournisseur',
+            actif=True
+        )
+        
+        response = self.client.get(reverse('detail_produit', args=[self.produit.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Собівартості')
+        self.assertContains(response, '8,75')
+        self.assertContains(response, 'Test Fournisseur')
+
+
+class IntegrationPhotoEtCoutTest(TestCase):
+    """Tests d'intégration pour photos et coûts d'achat"""
+
+    def setUp(self):
+        self.client = Client()
+
+    def test_workflow_complet(self):
+        """Test du workflow complet avec photo et coûts variables"""
+        from .models import CoutAchat
+        
+        # 1. Créer un produit avec photo
+        produit_data = {
+            'description': 'Produit Intégration',
+            'cout_achat': '15.00',
+            'prix_vente': '25.00',
+            'seuil_alerte': '8'
+        }
+        response = self.client.post(reverse('ajouter_produit'), produit_data)
+        self.assertEqual(response.status_code, 302)
+        
+        produit = Produit.objects.get(description='Produit Intégration')
+        
+        # 2. Ajouter un coût d'achat variable
+        cout_data = {
+            'cout': '14.25',
+            'fournisseur': 'Fournisseur Intégration',
+            'commentaire': 'Prix de volume',
+            'actif': True
+        }
+        response = self.client.post(
+            reverse('ajouter_cout_achat', args=[produit.pk]), 
+            cout_data
+        )
+        self.assertEqual(response.status_code, 302)
+        
+        # 3. Vérifier que le coût actuel a changé
+        produit.refresh_from_db()
+        self.assertEqual(produit.cout_achat_actuel(), Decimal('14.25'))
+        
+        # 4. Créer un mouvement d'entrée avec le coût spécifique
+        cout = CoutAchat.objects.get(cout=Decimal('14.25'))
+        mouvement_data = {
+            'produit': produit.pk,
+            'type_mouvement': 'entree',
+            'quantite': 100,
+            'cout_achat_utilise': cout.pk,
+            'commentaire': 'Stock initial'
+        }
+        response = self.client.post(reverse('ajouter_mouvement'), mouvement_data)
+        self.assertEqual(response.status_code, 302)
+        
+        # 5. Vérifier les calculs
+        self.assertEqual(produit.stock_actuel(), 100)
+        self.assertEqual(produit.valeur_stock(), Decimal('1425.00'))  # 100 * 14.25
+
+    def test_scenario_multiple_couts_et_prix(self):
+        """Test avec plusieurs coûts et prix pour un même produit"""
+        from .models import CoutAchat
+        
+        produit = Produit.objects.create(
+            description="Produit Multi-Coûts",
+            cout_achat=Decimal('10.00'),
+            prix_vente=Decimal('18.00')
+        )
+        
+        # Ajouter plusieurs coûts d'achat
+        cout1 = CoutAchat.objects.create(
+            produit=produit,
+            cout=Decimal('9.50'),
+            fournisseur='Fournisseur A',
+            actif=False
+        )
+        
+        cout2 = CoutAchat.objects.create(
+            produit=produit,
+            cout=Decimal('8.75'),
+            fournisseur='Fournisseur B',
+            actif=True
+        )
+        
+        # Ajouter plusieurs prix de vente
+        PrixVente.objects.create(
+            produit=produit,
+            prix=Decimal('20.00'),
+            client='Client Premium',
+            actif=True
+        )
+        
+        # Vérifier les calculs avec prix/coûts actifs
+        self.assertEqual(produit.cout_achat_actuel(), Decimal('8.75'))
+        self.assertEqual(produit.prix_vente_actuel(), Decimal('20.00'))
+        self.assertEqual(produit.marge_beneficiaire(), Decimal('11.25'))  # 20.00 - 8.75

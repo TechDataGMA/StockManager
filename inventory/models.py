@@ -10,7 +10,8 @@ class Produit(models.Model):
         max_digits=10,
         decimal_places=2,
         validators=[MinValueValidator(Decimal('0.00'))],
-        verbose_name="Собівартість"
+        verbose_name="Собівартість (базова)",
+        help_text="Базова собівартість товару"
     )
     prix_vente = models.DecimalField(
         max_digits=10,
@@ -18,6 +19,13 @@ class Produit(models.Model):
         validators=[MinValueValidator(Decimal('0.00'))],
         verbose_name="Ціна продажу (базова)",
         help_text="Базова ціна продажу"
+    )
+    photo = models.ImageField(
+        upload_to='produits/',
+        blank=True,
+        null=True,
+        verbose_name="Фото товару",
+        help_text="Зображення товару"
     )
     seuil_alerte = models.PositiveIntegerField(
         default=10,
@@ -69,17 +77,69 @@ class Produit(models.Model):
             return 'normal'
 
     def valeur_stock(self):
-        """Calcule la valeur du stock actuel (quantité × coût d'achat)"""
-        return self.stock_actuel() * self.cout_achat
+        """Calcule la valeur du stock actuel (quantité × coût actuel)"""
+        return self.stock_actuel() * self.cout_achat_actuel()
 
     def prix_vente_actuel(self):
         """Retourne le prix de vente le plus récent ou le prix de base"""
         dernier_prix = self.prix_vente_historique.filter(actif=True).order_by('-date_creation').first()
         return dernier_prix.prix if dernier_prix else self.prix_vente
 
+    def cout_achat_actuel(self):
+        """Retourne le coût d'achat le plus récent ou le coût de base"""
+        dernier_cout = self.cout_achat_historique.filter(
+            actif=True
+        ).order_by('-date_creation').first()
+        return dernier_cout.cout if dernier_cout else self.cout_achat
+
     def marge_beneficiaire(self):
         """Calcule la marge bénéficiaire actuelle"""
-        return self.prix_vente_actuel() - self.cout_achat
+        return self.prix_vente_actuel() - self.cout_achat_actuel()
+
+
+class CoutAchat(models.Model):
+    """Modèle pour l'historique des coûts d'achat variables"""
+    produit = models.ForeignKey(
+        Produit,
+        on_delete=models.CASCADE,
+        related_name='cout_achat_historique',
+        verbose_name="Товар"
+    )
+    cout = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.00'))],
+        verbose_name="Собівартість"
+    )
+    fournisseur = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name="Постачальник",
+        help_text="Постачальник або контекст для цієї вартості"
+    )
+    actif = models.BooleanField(
+        default=True,
+        verbose_name="Активна",
+        help_text="Чи активна ця вартість для використання"
+    )
+    commentaire = models.TextField(
+        blank=True,
+        verbose_name="Коментар",
+        help_text="Причина зміни вартості або деталі закупівлі"
+    )
+    date_creation = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Дата створення"
+    )
+
+    class Meta:
+        verbose_name = "Собівартість"
+        verbose_name_plural = "Собівартості"
+        ordering = ['-date_creation']
+
+    def __str__(self):
+        fournisseur_info = f" ({self.fournisseur})" if self.fournisseur else ""
+        return f"{self.produit.description} - {self.cout}€{fournisseur_info}"
 
 
 class PrixVente(models.Model):
@@ -151,7 +211,17 @@ class Mouvement(models.Model):
         null=True,
         blank=True,
         verbose_name="Ціна продажу використана",
-        help_text="Ціна продажу використана для цієї операції (тільки для виходів)"
+        help_text="Ціна продажу використана для цієї операції "
+                  "(тільки для виходів)"
+    )
+    cout_achat_utilise = models.ForeignKey(
+        'CoutAchat',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Собівартість використана",
+        help_text="Собівартість використана для цієї операції "
+                  "(тільки для надходжень)"
     )
     date_mouvement = models.DateTimeField(
         auto_now_add=True, verbose_name="Дата операції"
@@ -175,11 +245,20 @@ class Mouvement(models.Model):
             return self.produit.prix_vente_actuel()
         return None
 
+    def cout_utilise(self):
+        """Retourne le coût d'achat utilisé pour ce mouvement"""
+        if self.type_mouvement == 'entree' and self.cout_achat_utilise:
+            return self.cout_achat_utilise.cout
+        elif self.type_mouvement == 'entree':
+            return self.produit.cout_achat_actuel()
+        return None
+
     def valeur_mouvement(self):
         """Calcule la valeur du mouvement"""
         if self.type_mouvement == 'sortie':
             prix = self.prix_utilise()
             return self.quantite * prix if prix else 0
         elif self.type_mouvement == 'entree':
-            return self.quantite * self.produit.cout_achat
+            cout = self.cout_utilise()
+            return self.quantite * cout if cout else 0
         return 0

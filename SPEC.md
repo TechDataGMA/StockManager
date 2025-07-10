@@ -1,4 +1,9 @@
-# Gestion des Entrées/Sorties de Marchandises — Application Django
+# Gestion de### 1. Gestion des produits
+- Ajouter, modifier, supprimer un produit
+- Champ descr- **Tests d'intégration** :  
+  Couvrir les principaux scénarios utilisateurs (création de produit, enregistrement d'un mouvement, sélection d'un prix négocié, export CSV, alertes, upload de photos, gestion des coûts variables).tion, coût d'achat, prix de vente
+- **Gestion des photos de produits** : Upload et affichage d'images pour chaque produit
+- **Coûts d'achat variables** : Historique des coûts d'achat selon les fournisseurs et contextesntrées/Sorties de Marchandises — Application Django
 
 ## Objectif
 
@@ -42,6 +47,23 @@ Développer une application web légère sous Django permettant de gérer les en
 - Calcul automatique de la valeur du mouvement selon le prix sélectionné
 - Marge bénéficiaire calculée automatiquement
 
+### Gestion des photos de produits
+- Upload d'images pour chaque produit (formats JPG, PNG, GIF)
+- Affichage des photos dans la liste des produits (miniatures)
+- Affichage des photos dans le détail du produit (image complète)
+- Gestion du formulaire avec `enctype="multipart/form-data"`
+- Stockage des images dans le dossier `media/produits/`
+- Affichage conditionnel (placeholder si pas de photo)
+
+### Gestion des coûts d'achat variables
+- Historique complet des coûts d'achat par produit
+- Coût par fournisseur ou contexte d'achat
+- Système d'activation/désactivation des coûts
+- Sélection dynamique du coût lors des mouvements d'entrée
+- Calcul automatique de la valeur des mouvements selon le coût sélectionné
+- Interface de gestion complète (ajout, activation, historique)
+- Intégration AJAX pour la sélection en temps réel
+
 ### Interface et expérience utilisateur
 - Interface 100% en ukrainien (labels, messages, erreurs, boutons)
 - Design responsive et moderne avec Bootstrap 5
@@ -53,10 +75,11 @@ Développer une application web légère sous Django permettant de gérer les en
 - Export CSV des mouvements filtrés, avec montants en euro
 
 ### Architecture technique
-- Modèles : Produit, Mouvement, PrixVente (historique des prix)
-- Formulaires adaptés pour la gestion des prix négociés et leur sélection lors des sorties
-- Vues Django avec gestion AJAX pour la sélection du prix
-- Templates Bootstrap avec affichage des prix négociés et des montants en euro
+- Modèles : Produit, Mouvement, PrixVente (historique des prix), CoutAchat (historique des coûts)
+- Gestion des fichiers media pour les photos de produits
+- Formulaires adaptés pour la gestion des prix négociés et coûts variables avec sélection lors des mouvements
+- Vues Django avec gestion AJAX pour la sélection dynamique des prix et coûts
+- Templates Bootstrap avec affichage des photos, prix négociés, coûts variables et montants en euro
 - Code et documentation en français, interface utilisateur en ukrainien
 
 ## Contraintes techniques

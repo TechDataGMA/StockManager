@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} - Система управління запасами{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="mb-0">
+                    <i class="bi bi-cash-coin"></i> {{ title }}
+                </h3>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info" role="alert">
+                    <i class="bi bi-info-circle"></i>
+                    <strong>Товар:</strong> {{ produit.description }}<br>
+                    <strong>Базова собівартість:</strong> {{ produit.cout_achat }} €<br>
+                    <strong>Поточна активна собівартість:</strong> {{ produit.cout_achat_actuel }} €
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.cout.id_for_label }}" class="form-label">
+                                    {{ form.cout.label }} <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    {{ form.cout }}
+                                    <span class="input-group-text">€</span>
+                                </div>
+                                {% if form.cout.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.cout.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.fournisseur.id_for_label }}" class="form-label">
+                                    {{ form.fournisseur.label }}
+                                </label>
+                                {{ form.fournisseur }}
+                                {% if form.fournisseur.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.fournisseur.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.commentaire.id_for_label }}" class="form-label">
+                            {{ form.commentaire.label }}
+                        </label>
+                        {{ form.commentaire }}
+                        {% if form.commentaire.errors %}
+                            <div class="text-danger">
+                                {% for error in form.commentaire.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            {{ form.actif }}
+                            <label class="form-check-label" for="{{ form.actif.id_for_label }}">
+                                {{ form.actif.label }}
+                            </label>
+                            <div class="form-text">
+                                Якщо відмічено, ця собівартість стане активною для використання
+                            </div>
+                        </div>
+                        {% if form.actif.errors %}
+                            <div class="text-danger">
+                                {% for error in form.actif.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'detail_produit' produit.pk %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Назад до товару
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Додати собівартість
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -26,6 +26,13 @@
                 </h5>
             </div>
             <div class="card-body">
+                {% if produit.photo %}
+                    <div class="text-center mb-3">
+                        <img src="{{ produit.photo.url }}" alt="{{ produit.description }}" 
+                             class="img-fluid rounded" style="max-height: 300px; max-width: 100%;">
+                    </div>
+                {% endif %}
+                
                 <dl class="row">
                     <dt class="col-sm-6">Опис:</dt>
                     <dd class="col-sm-6">{{ produit.description }}</dd>
@@ -163,6 +170,99 @@
                         </p>
                         <a href="{% url 'ajouter_prix_vente' produit.pk %}" class="btn btn-outline-primary">
                             <i class="bi bi-plus-circle"></i> Додати першу переговорну ціну
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Section des coûts d'achat variables -->
+        <div class="card mt-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-cash-coin"></i> Собівартості
+                </h5>
+                <a href="{% url 'ajouter_cout_achat' produit.pk %}" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-plus-circle"></i> Додати собівартість
+                </a>
+            </div>
+            <div class="card-body">
+                {% if cout_historique %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Собівартість</th>
+                                    <th>Постачальник</th>
+                                    <th>Дата</th>
+                                    <th>Статус</th>
+                                    <th>Дії</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for cout in cout_historique %}
+                                <tr {% if cout.actif %}class="table-success"{% endif %}>
+                                    <td>
+                                        <strong>{{ cout.cout }} €</strong>
+                                        {% if cout.actif %}
+                                            <span class="badge bg-success ms-1">Активна</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ cout.fournisseur|default:"—" }}</td>
+                                    <td>{{ cout.date_creation|date:"d.m.Y H:i" }}</td>
+                                    <td>
+                                        {% if cout.actif %}
+                                            <span class="badge bg-success">Активна</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Неактивна</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <form method="post" action="{% url 'toggle_cout_actif' produit.pk cout.pk %}" style="display: inline;">
+                                            {% csrf_token %}
+                                            {% if cout.actif %}
+                                                <button type="submit" class="btn btn-sm btn-outline-warning" 
+                                                        onclick="return confirm('Деактивувати цю собівартість?')">
+                                                    <i class="bi bi-pause-circle"></i> Деактивувати
+                                                </button>
+                                            {% else %}
+                                                <button type="submit" class="btn btn-sm btn-outline-success"
+                                                        onclick="return confirm('Активувати цю собівартість? Всі інші собівартості буде деактивовано.')">
+                                                    <i class="bi bi-play-circle"></i> Активувати
+                                                </button>
+                                            {% endif %}
+                                        </form>
+                                        {% if cout.commentaire %}
+                                            <button class="btn btn-sm btn-outline-info ms-1" 
+                                                    data-bs-toggle="tooltip" 
+                                                    title="{{ cout.commentaire }}">
+                                                <i class="bi bi-info-circle"></i>
+                                            </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Affichage du coût de base en bas -->
+                    <div class="mt-3 p-2 bg-light rounded">
+                        <small class="text-muted">
+                            <i class="bi bi-info-circle"></i> 
+                            <strong>Базова собівартість:</strong> {{ produit.cout_achat }} € 
+                            (використовується коли немає активних собівартостей)
+                        </small>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-cash-coin" style="font-size: 3rem; color: #6c757d;"></i>
+                        <p class="mt-2 text-muted">Різні собівартості відсутні</p>
+                        <p class="text-muted">
+                            <small>Використовується базова собівартість: <strong>{{ produit.cout_achat }} €</strong></small>
+                        </p>
+                        <a href="{% url 'ajouter_cout_achat' produit.pk %}" class="btn btn-outline-primary">
+                            <i class="bi bi-plus-circle"></i> Додати першу змінну собівартість
                         </a>
                     </div>
                 {% endif %}

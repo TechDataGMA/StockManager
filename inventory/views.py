@@ -3,8 +3,11 @@ from django.contrib import messages
 from django.db.models import Sum, Q
 from django.utils import timezone
 from datetime import datetime, timedelta
-from .models import Produit, Mouvement, PrixVente
-from .forms import ProduitForm, MouvementForm, FiltreMovementForm, PrixVenteForm
+from .models import Produit, Mouvement, PrixVente, CoutAchat
+from .forms import (
+    ProduitForm, MouvementForm, FiltreMovementForm, 
+    PrixVenteForm, CoutAchatForm
+)
 import csv
 from django.http import HttpResponse, JsonResponse
 
@@ -49,17 +52,19 @@ def detail_produit(request, pk):
     produit = get_object_or_404(Produit, pk=pk)
     mouvements = produit.mouvement_set.all()
     prix_historique = produit.prix_vente_historique.all()
+    cout_historique = produit.cout_achat_historique.all()
     return render(request, 'inventory/detail_produit.html', {
         'produit': produit,
         'mouvements': mouvements,
-        'prix_historique': prix_historique
+        'prix_historique': prix_historique,
+        'cout_historique': cout_historique
     })
 
 
 def ajouter_produit(request):
     """Ajouter un nouveau produit"""
     if request.method == 'POST':
-        form = ProduitForm(request.POST)
+        form = ProduitForm(request.POST, request.FILES)
         if form.is_valid():
             form.save()
             messages.success(request, 'Товар успішно додано!')
@@ -74,7 +79,7 @@ def modifier_produit(request, pk):
     """Modifier un produit existant"""
     produit = get_object_or_404(Produit, pk=pk)
     if request.method == 'POST':
-        form = ProduitForm(request.POST, instance=produit)
+        form = ProduitForm(request.POST, request.FILES, instance=produit)
         if form.is_valid():
             form.save()
             messages.success(request, 'Товар успішно оновлено!')
@@ -268,5 +273,83 @@ def get_prix_produit(request, pk):
             })
         
         return JsonResponse({'prix': prix_list})
+    
+    return JsonResponse({'error': 'Requête invalide'}, status=400)
+
+
+def ajouter_cout_achat(request, pk):
+    """Ajouter un nouveau coût d'achat pour un produit"""
+    produit = get_object_or_404(Produit, pk=pk)
+    
+    if request.method == 'POST':
+        form = CoutAchatForm(request.POST)
+        if form.is_valid():
+            cout_achat = form.save(commit=False)
+            cout_achat.produit = produit
+            
+            # Si ce coût est défini comme actif, désactiver les autres
+            if cout_achat.actif:
+                produit.cout_achat_historique.update(actif=False)
+            
+            cout_achat.save()
+            messages.success(request, 'Нова собівартість успішно додана!')
+            return redirect('detail_produit', pk=produit.pk)
+    else:
+        form = CoutAchatForm()
+    
+    return render(request, 'inventory/form_cout_achat.html', {
+        'form': form,
+        'produit': produit,
+        'title': f'Додати собівартість для {produit.description}'
+    })
+
+
+def toggle_cout_actif(request, pk, cout_pk):
+    """Activer/désactiver un coût d'achat"""
+    produit = get_object_or_404(Produit, pk=pk)
+    cout = get_object_or_404(CoutAchat, pk=cout_pk, produit=produit)
+    
+    if request.method == 'POST':
+        if not cout.actif:
+            # Désactiver tous les autres coûts
+            produit.cout_achat_historique.update(actif=False)
+            cout.actif = True
+            cout.save()
+            messages.success(request, 'Собівартість активована!')
+        else:
+            cout.actif = False
+            cout.save()
+            messages.success(request, 'Собівартість деактивована!')
+        
+        return redirect('detail_produit', pk=produit.pk)
+    
+    return redirect('detail_produit', pk=pk)
+
+
+def get_cout_produit(request, pk):
+    """Retourner les coûts disponibles pour un produit (AJAX)"""
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        produit = get_object_or_404(Produit, pk=pk)
+        cout_list = []
+        
+        # Coût de base
+        cout_list.append({
+            'id': '',
+            'cout': float(produit.cout_achat),
+            'label': f'Coût de base: {produit.cout_achat}€'
+        })
+        
+        # Coûts négociés actifs
+        for cout in produit.cout_achat_historique.filter(actif=True):
+            label = f'{cout.cout}€'
+            if cout.fournisseur:
+                label += f' ({cout.fournisseur})'
+            cout_list.append({
+                'id': cout.id,
+                'cout': float(cout.cout),
+                'label': label
+            })
+        
+        return JsonResponse({'couts': cout_list})
     
     return JsonResponse({'error': 'Requête invalide'}, status=400)

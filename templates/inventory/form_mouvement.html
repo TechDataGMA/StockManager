@@ -82,6 +82,26 @@
                         {% endif %}
                     </div>
 
+                    <!-- Sélection du coût d'achat pour les entrées -->
+                    <div class="mb-3" id="cout-selection" style="display: none;">
+                        <label for="{{ form.cout_achat_utilise.id_for_label }}" class="form-label">
+                            <i class="bi bi-cash-coin"></i> Собівартість для цієї операції
+                        </label>
+                        <select id="cout-select" class="form-select" name="cout_achat_utilise">
+                            <option value="">Виберіть собівартість...</option>
+                        </select>
+                        <div class="form-text">
+                            Виберіть собівартість для використання в цій операції надходження
+                        </div>
+                        {% if form.cout_achat_utilise.errors %}
+                            <div class="text-danger">
+                                {% for error in form.cout_achat_utilise.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
                     <div class="mb-3">
                         <label for="{{ form.commentaire.id_for_label }}" class="form-label">
                             {{ form.commentaire.label }}
@@ -111,15 +131,33 @@
 </div>
 
 <script>
-function togglePrixVente() {
+function togglePrixVenteEtCout() {
     const typeMouvement = document.getElementById('{{ form.type_mouvement.id_for_label }}').value;
     const prixSelection = document.getElementById('prix-selection');
+    const coutSelection = document.getElementById('cout-selection');
     
     if (typeMouvement === 'sortie') {
         prixSelection.style.display = 'block';
+        coutSelection.style.display = 'none';
         loadPrixVente(document.getElementById('{{ form.produit.id_for_label }}').value);
+    } else if (typeMouvement === 'entree') {
+        prixSelection.style.display = 'none';
+        coutSelection.style.display = 'block';
+        loadCoutAchat(document.getElementById('{{ form.produit.id_for_label }}').value);
     } else {
         prixSelection.style.display = 'none';
+        coutSelection.style.display = 'none';
+    }
+}
+
+function loadPrixVenteEtCout(produitId) {
+    if (!produitId) return;
+    
+    const typeMouvement = document.getElementById('{{ form.type_mouvement.id_for_label }}').value;
+    if (typeMouvement === 'sortie') {
+        loadPrixVente(produitId);
+    } else if (typeMouvement === 'entree') {
+        loadCoutAchat(produitId);
     }
 }
 
@@ -151,9 +189,37 @@ function loadPrixVente(produitId) {
     });
 }
 
+function loadCoutAchat(produitId) {
+    if (!produitId) return;
+    
+    const typeMouvement = document.getElementById('{{ form.type_mouvement.id_for_label }}').value;
+    if (typeMouvement !== 'entree') return;
+    
+    fetch(`/produits/${produitId}/cout-ajax/`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        const select = document.getElementById('cout-select');
+        select.innerHTML = '<option value="">Собівартість за замовчуванням</option>';
+        
+        data.couts.forEach(cout => {
+            const option = document.createElement('option');
+            option.value = cout.id;
+            option.textContent = cout.label;
+            select.appendChild(option);
+        });
+    })
+    .catch(error => {
+        console.error('Erreur lors du chargement des coûts:', error);
+    });
+}
+
 // Initialiser l'affichage au chargement de la page
 document.addEventListener('DOMContentLoaded', function() {
-    togglePrixVente();
+    togglePrixVenteEtCout();
 });
 </script>
 {% endblock %}

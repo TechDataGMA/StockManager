@@ -36,7 +36,7 @@ run: ## Lance le serveur de développement
 run-prod: ## Lance le serveur en mode production
 	$(PYTHON) manage.py collectstatic --noinput --settings=stockmanager.settings.production
 	$(PYTHON) manage.py migrate --settings=stockmanager.settings.production
-	gunicorn stockmanager.wsgi:application --bind 127.0.0.1:8004 --settings=stockmanager.settings.production
+	gunicorn stockmanager.wsgi:application --bind 127.0.0.1:8005 --settings=stockmanager.settings.production
 
 migrate: ## Applique les migrations
 	$(PYTHON) manage.py makemigrations

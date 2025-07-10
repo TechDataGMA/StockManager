@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Charger les variables d'environnement depuis .env s'il existe
+if [ -f .env ]; then
+    export $(grep -v '^#' .env | xargs)
+fi
+
 # Script de déploiement pour StockManager (version docker-compose)
 set -e
 
@@ -48,6 +53,30 @@ else
     print_success ".env déjà présent"
 fi
 
+# Sauvegarde de la base de données SQLite avant déploiement
+if [ -f db.sqlite3 ]; then
+    BACKUP_NAME="db.sqlite3.backup.$(date +%Y%m%d_%H%M%S)"
+    cp db.sqlite3 "$BACKUP_NAME"
+    print_success "Sauvegarde de db.sqlite3 -> $BACKUP_NAME"
+else
+    print_warning "Aucune base de données existante trouvée à sauvegarder."
+fi
+
+# Vérification/création du fichier db.sqlite3 (doit être un fichier, pas un dossier)
+if [ -d db.sqlite3 ]; then
+    print_warning "Suppression du dossier db.sqlite3 qui ne devrait pas exister..."
+    rm -rf db.sqlite3
+fi
+if [ ! -f db.sqlite3 ]; then
+    print_message "Création du fichier db.sqlite3 vide..."
+    touch db.sqlite3
+    chmod 664 db.sqlite3
+    chown $(id -u):$(id -g) db.sqlite3
+    print_success "Fichier db.sqlite3 créé avec succès"
+else
+    print_success "Fichier db.sqlite3 déjà présent"
+fi
+
 # Sauvegarde de la base de données (si elle existe)
 print_message "Sauvegarde de la base de données..."
 if [ -f "./db.sqlite3" ]; then
@@ -57,10 +86,23 @@ else
     print_warning "Aucune base de données existante trouvée"
 fi
 
+# Suppression des backups de plus de 7 jours
+find . -maxdepth 1 -name "db.sqlite3.backup.*" -type f -mtime +7 -exec rm -f {} \;
+print_success "Backups de plus de 7 jours supprimés"
+
 # Création des répertoires nécessaires
 print_message "Création des répertoires..."
 mkdir -p staticfiles media logs
 print_success "Répertoires créés"
+
+# Connexion au registry Docker privé
+print_message "Connexion au registry Docker privé..."
+docker login "$REGISTRY_URL" -u "$REGISTRY_USERNAME" -p "$REGISTRY_PASSWORD"
+if [ $? -ne 0 ]; then
+    print_error "Échec de l'authentification au registry Docker privé"
+    exit 1
+fi
+print_success "Authentification au registry réussie"
 
 # Pull de la dernière image et déploiement
 print_message "Récupération de la dernière image et déploiement..."

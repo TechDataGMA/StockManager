@@ -2,11 +2,10 @@ version: '3.8'
 
 services:
   stockmanager:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ${REGISTRY_URL}/${IMAGE_NAME}:${TAG}
+    env_file: .env
     ports:
-      - "8005:8005"
+      - "${HOST_PORT:-8005}:${CONTAINER_PORT:-8005}"
     volumes:
       - ./db.sqlite3:/app/db.sqlite3
       - ./staticfiles:/app/staticfiles
@@ -14,15 +13,16 @@ services:
       - ./logs:/app/logs
     environment:
       - DJANGO_SETTINGS_MODULE=stockmanager.settings.production
-      - SECRET_KEY=dev-secret-key-change-in-production
-      - ALLOWED_HOST=localhost
+      - SECRET_KEY=${SECRET_KEY}
+      - ALLOWED_HOST=${ALLOWED_HOST}
     command: >
-      bash -c "source /app/venv/bin/activate && 
-               gunicorn stockmanager.wsgi:application 
-               --bind 0.0.0.0:8005 
-               --workers 2 
-               --timeout 60 
-               --log-level info"
+      sh -c "/app/venv/bin/gunicorn stockmanager.wsgi:application \
+      --bind 0.0.0.0:$CONTAINER_PORT \
+      --workers ${WORKERS:-2} \
+      --timeout ${TIMEOUT:-60} \
+      --log-level ${LOG_LEVEL:-info} \
+      --access-logfile /app/logs/gunicorn_access.log \
+      --error-logfile /app/logs/gunicorn_error.log"
     restart: unless-stopped
     
   # Service pour les tests (optionnel)
@@ -35,6 +35,6 @@ services:
     environment:
       - DJANGO_SETTINGS_MODULE=stockmanager.settings.development
     command: >
-      bash -c "source /app/venv/bin/activate && 
+      bash -c "source /app/venv/bin/activate && \
                python manage.py test"
     profiles: ["test"]

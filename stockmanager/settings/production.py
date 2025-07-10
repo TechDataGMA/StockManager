@@ -19,12 +19,15 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'change-me-in-production')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
+# ALLOWED_HOSTS dynamique depuis la variable d'environnement (séparateur virgule)
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
     'stockmanager.local',
-    os.environ.get('ALLOWED_HOST', 'localhost'),
 ]
+extra_hosts = os.environ.get('ALLOWED_HOST', '')
+if extra_hosts:
+    ALLOWED_HOSTS += [h.strip() for h in extra_hosts.split(',') if h.strip()]
 
 # Database de production (toujours SQLite pour ce projet)
 DATABASES = {

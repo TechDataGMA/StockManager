@@ -30,6 +30,15 @@ RUN /bin/bash -c "source /app/venv/bin/activate \
     && pip install --no-cache-dir -r requirements.txt \
     && pip install gunicorn"
 
+# Installer uv (gestionnaire de paquets rapide)
+RUN /app/venv/bin/pip install uv
+
+# Installer les dépendances Python avec uv
+RUN /bin/bash -c "source /app/venv/bin/activate \
+    && uv pip install --upgrade pip setuptools \
+    && uv pip install --no-cache-dir -r requirements.txt \
+    && uv pip install gunicorn"
+
 # Création des répertoires nécessaires
 RUN mkdir -p /app/staticfiles /app/media /app/logs \
     && touch /app/logs/prod.txt
